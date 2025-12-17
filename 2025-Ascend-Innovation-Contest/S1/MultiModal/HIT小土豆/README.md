@@ -41,14 +41,6 @@
 
 **精度与计算流优化**
 
-- **Softmax 去 FP32**:
-    - **优化前**: `nn.functional.softmax(..., dtype=mindspore.float32)` 强制转 FP32 计算。
-    - **优化后**:
-      ```python
-      attn_weights = nn.functional.softmax(attn_weights, dim=-1)
-      ```
-    - **收益**: 保持 BFloat16/FP16 数据流，避免不必要的 Cast 操作，减少显存带宽压力。
-
 - **RoPE 参数预处理**:
     - **策略**: 将 `cos`/`sin` 的维度调整（`unsqueeze`）移至 Decoder 层循环之外，仅计算一次。
     - **收益**: 减少每层重复的 View/Reshape 操作，精简计算图。
@@ -61,9 +53,8 @@
 
 ## 技术亮点
 
-1.  **激进的算子融合**: 全面启用 `rotary_position_embedding` 和 `rms_norm` 等昇腾专用融合算子，这是大模型推理加速的关键手段。
-2.  **全链路半精度**: 移除 Attention 内部冗余的 FP32 类型转换，使得推理过程尽可能保持在 BF16/FP16，最大化利用 NPU 算力。
-3.  **显式算子优先**: 大量使用 `ops.narrow`、`ops.split` 替代 Python 原生切片语法，减少隐式拷贝，使计算图对 NPU 编译器更友好。
+1.  **算子融合**: 使用 `rotary_position_embedding` 和 `rms_norm` 等融合算子，减少kernel下发的开销。
+2.  **显式算子优先**: 大量使用 `ops.narrow`、`ops.split` 替代 Python 原生切片语法，减少隐式拷贝，使计算图对 NPU 编译器更友好。
 
 ## 优化收益预期
 
